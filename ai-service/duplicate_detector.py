@@ -52,6 +52,12 @@ class EmbeddingEngine:
         self._initialize_backend()
 
     def _initialize_backend(self):
+        # 0. Fast spatial feature embedding mode (instantaneous, 0MB download)
+        if os.environ.get("CLEANTO_FAST_EMBEDDING", "1") == "1":
+            self.backend = "vision-feature-embedding"
+            logger.info("Initialized fast spatial vision feature embedding (instant response mode)")
+            return
+
         # 1. Try sentence-transformers (clip-ViT-B-32)
         try:
             from sentence_transformers import SentenceTransformer

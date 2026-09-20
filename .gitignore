@@ -29,3 +29,12 @@ yarn-error.log*
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Python & SQLite
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*.db
+*.sqlite3
+backend/uploads/
+backend/temp_uploads/

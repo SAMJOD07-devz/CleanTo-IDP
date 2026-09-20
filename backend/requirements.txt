@@ -1,0 +1,12 @@
+# CleanTO Backend API Requirements (Review II 20% Milestone)
+
+Flask>=2.2.0
+Flask-Cors>=4.0.0
+requests>=2.28.0
+
+# AI Perceptual Hashing dependencies
+imagehash>=4.3.1
+Pillow>=10.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+PyWavelets>=1.4.0
