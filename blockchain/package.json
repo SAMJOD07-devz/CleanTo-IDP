@@ -1,0 +1,14 @@
+{
+  "name": "cleanto-blockchain",
+  "version": "0.1.0",
+  "description": "CleanTO 20% Milestone - Minimal local ledger contract and demo",
+  "scripts": {
+    "compile": "hardhat compile",
+    "demo": "hardhat run scripts/demo.js",
+    "test": "hardhat test"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.18"
+  }
+}

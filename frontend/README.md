@@ -1,76 +1,87 @@
-# CleanTO — Frontend Client Application
+# CleanTO — Frontend Client Application (PRD v1.0 Aligned)
 
 > **Role Responsibility:** Engineer B (Frontend & Blockchain)  
-> **Team:** CleanTO Innovative Design Project (IDP)  
+> **Project:** CleanTO Ecosystem — AI-Powered Waste Cleanup Verification and Blockchain Reward System  
+> **Team:** Saumya GauravKumar Pandya (25BCE5069), Vaibhav Bisaria (25BCE1975), Harshit Mishra (25BCE5013)  
 > **Integration Partners:** Engineer A (Backend API & Database), Engineer C (AI Verification Service)
 
 ---
 
-## 1. Context & Purpose
+## 1. Overview & PRD Alignment
 
-Community waste cleanup faces two critical hurdles:
-1. Lack of genuine incentive for citizens to participate.
-2. Inability to reliably verify cleanup validity (fraudulent submissions, staged litter, photo reuse).
+CleanTO enables community waste cleanups through a fraud-resistant, verified workflow. Contributors upload before and after photos with GPS and timestamps, verified via AI and a Delegated Proof of Stake (DPoS) validator network, recorded on a permissioned ledger, and rewarded with non-speculative **CleanTO utility points**.
 
-**CleanTO** solves this through an AI-and-blockchain-verified cleanup workflow. Contributors upload geolocated "before" and "after" photos of cleanup spots. Submissions are verified by AI and human validators (DPoS model), recorded immutably on a permissioned ledger, and rewarded with **CleanTO utility points** redeemable in a capped marketplace.
-
----
-
-## 2. Frontend Scope & Core Modules
-
-The frontend is a **mobile-first web application** (or responsive hybrid client) built to serve contributors and validators.
-
-### A. Photo Capture & Cleanup Submission Flow
-- **Before Photo Capture:**
-  - Live camera / photo upload with mandatory real-time **GPS coordinate capture** (`navigator.geolocation`) and ISO **timestamp generation**.
-  - Site description / notes.
-- **Active Cleanup Tracking:**
-  - Timer/progress tracker indicating the ongoing cleanup session.
-- **After Photo Capture:**
-  - Same-spot guidance to ensure camera angle matches the "before" image.
-  - Automatic GPS & timestamp capture for delta comparison.
-- **Submission Confirmation:**
-  - Pre-flight preview before uploading to the backend.
-
-### B. Submission Status & Verification Timeline
-- Real-time or polling-based status tracker for each submission:
-  - `UPLOADED` -> Images stored on IPFS via Backend.
-  - `AI_EVALUATING` -> Duplicate detection, transformation score, location consistency.
-  - `AUTO_APPROVED` / `AUTO_REJECTED` -> Clear pass/fail paths.
-  - `IN_VALIDATION` -> Borderline cases escalated to peer validators.
-  - `FINALIZED` -> Recorded on ledger and CleanTO reward credited.
-
-### C. CleanTO Wallet & Rewards View
-- **Balance Display:** Total earned CleanTO utility points.
-- **Crucial UI Constraint:** CleanTO is explicitly **NOT** a cryptocurrency or tradeable financial asset. The UI must represent it strictly as **verified community reward points / credits**.
-- **Transaction History:** List of verified cleanup rewards, timestamps, and redemption debits.
-
-### D. Capped Redemption Catalogue
-- Catalog of community partner vouchers, discount coupons, and sustainable goods.
-- Redemption flow with per-user monthly/daily caps to prevent bot farming or gaming.
-
-### E. Validator Review Dashboard (DPoS)
-- Reserved for users with high reputation and verified cleanup history.
-- **Review Interface:**
-  - Side-by-side Before vs. After comparison with zoom and pan.
-  - Inspection of GPS delta, capture timestamps, and AI transformation/duplicate scores.
-- **Staking & Voting:**
-  - Display validator's active stake (collateral).
-  - Multi-validator voting actions: `Approve`, `Reject`, or `Flag Fraud`.
-  - Alert regarding stake slashing risk for negligent/fraudulent approvals.
+### PRD Target Users Supported by Frontend:
+1. **Citizen / Contributor:** Captures/uploads cleanup photo pairs, tracks verification in real time, views CleanTO balance, and redeems vouchers.
+2. **Delegate / Validator:** Eligible high-reputation users who stake CleanTO, review borderline/flagged submissions, and flag dirty zones.
+3. **Municipal Authority / NGO (Phase 2/3):** Consumes impact analytics, views priority zones, and coordinates bonus cleanup campaigns.
+4. **Platform Administrator:** Observes system health, review SLAs, and validator metrics.
 
 ---
 
-## 3. Interface Contract (Frontend ↔ Backend API)
+## 2. Functional Requirements Breakdown (PRD Mapping)
 
-> **Rule:** The frontend develops against this contract using mock endpoints until the backend is integrated.
+| PRD ID | Requirement | Priority | Frontend Module & UI Implementation |
+| :--- | :--- | :--- | :--- |
+| **FR-1** | Before photo capture with GPS + timestamp | **Must** | Camera capture screen with mandatory device GPS lock (`navigator.geolocation`) and ISO timestamp. Pre-submission preview. |
+| **FR-2** | After photo capture of the same site | **Must** | "After" photo capture with live ghosting/overlay of the "before" shot to guide angle consistency. Real-time GPS verification. |
+| **FR-5** | Minimum time gap enforcement | **Must** | Active cleanup timer & lock UI. Warns contributor if attempting to upload "after" photo too soon, preventing staged fraud. |
+| **FR-6** | Borderline/flagged submissions routing | **Must** | **Validator Review Dashboard:** Dedicated inbox displaying submissions pending peer review. |
+| **FR-7** | Validator eligibility & staking flow | **Must** | **Staking Modal/Screen:** Informs eligible users of reputation threshold, locks CleanTO collateral before enabling review actions. |
+| **FR-8** | Validator slashing alerts | **Must** | History/penalty logs in Validator profile showing slashing alerts and reputation changes if fraud was negligently approved. |
+| **FR-10** | CleanTO balance crediting | **Must** | Automatic wallet update and celebratory reward modal upon final verification. |
+| **FR-11** | Balance, history & redemption view | **Should** | **Wallet & Catalog:** Detailed activity ledger, token balance, and filtered redemption catalog (vouchers, coupons). |
+| **FR-12** | Flag not-yet-cleaned areas | **Should** | **Cleanup-Needed Map:** Interactive map allowing delegates/citizens to pin dirty zones needing community attention. |
+| **FR-13** | Priority zones with bonus rewards | **Could** | Map badge and card highlights indicating municipal/NGO sponsored high-reward cleanup locations. |
+| **FR-14** | Leaderboard view | **Could** | Regional & campus leaderboard showing top contributors by verified cleanups and area impact. |
 
-### Submission Request Contract
-- **Endpoint:** `POST /api/v1/submissions`
-- **Content-Type:** `multipart/form-data`
-- **Payload:**
-  - `before_image`: File (Binary)
-  - `after_image`: File (Binary)
+---
+
+## 3. UI/UX Specifications & Non-Functional Constraints
+
+- **Usability Constraint (PRD §7):** The entire photo submission flow must be completable in **under 60 seconds** on a low-end smartphone with average 3G/4G connectivity.
+- **Mobile-First & Responsive:** Touch-friendly buttons (minimum 44x44px touch targets), lightweight asset footprint, zero heavy external runtime libraries.
+- **Location Privacy:** Exact GPS coordinates are sent strictly to the backend for verification. Public feeds and maps display only generalized/fuzzed location radius.
+- **Non-Crypto Framing:** CleanTO is presented strictly as **Community Reward Points / Impact Credits** — avoid crypto jargon (e.g., gas, mining, HODL, token swap) to prevent user confusion and speculative behavior.
+
+---
+
+## 4. Frontend Architecture & Screen Hierarchy
+
+```text
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── camera/          # GeoPhotoCapture, CameraOverlay, GeoTagBadge
+│   │   ├── submission/      # CleanupTimer, VerificationTimeline, SubmissionCard
+│   │   ├── wallet/          # BalanceCard, TransactionHistory, RewardBadge
+│   │   ├── redemption/      # OfferCard, VoucherModal, FilterTabs
+│   │   ├── validator/       # SubmissionDiffViewer, StakingCard, VoteButtonGroup
+│   │   └── map/             # DirtyZoneMap, PriorityZonePin
+│   ├── pages/
+│   │   ├── HomeFeed.tsx
+│   │   ├── NewSubmission.tsx (Before -> Active Cleaning -> After)
+│   │   ├── SubmissionDetail.tsx
+│   │   ├── Wallet.tsx
+│   │   ├── RedemptionCatalog.tsx
+│   │   ├── ValidatorDashboard.tsx
+│   │   └── Leaderboard.tsx
+│   └── services/
+│       ├── api.ts           # Axios / Fetch client targeting Backend
+│       ├── mock/            # Mock responses for parallel development
+│       └── geolocation.ts   # Browser location helper with error handling
+```
+
+---
+
+## 5. Submission API Contract (Frontend ↔ Backend)
+
+### Upload Endpoint
+- **URL:** `POST /api/v1/submissions`
+- **Encoding:** `multipart/form-data`
+- **Fields:**
+  - `before_image`: File (JPEG/PNG)
+  - `after_image`: File (JPEG/PNG)
   - `user_id`: String
   - `gps_lat_before`: Float
   - `gps_long_before`: Float
@@ -79,36 +90,39 @@ The frontend is a **mobile-first web application** (or responsive hybrid client)
   - `gps_long_after`: Float
   - `timestamp_after`: ISO 8601 String
 
-### Status Polling Contract
-- **Endpoint:** `GET /api/v1/submissions/:submission_id`
+### Status Polling / WebSocket Contract
+- **URL:** `GET /api/v1/submissions/:submission_id`
+- **Status Enum:**
+  `UPLOADED` | `AI_EVALUATING` | `AUTO_APPROVED` | `AUTO_REJECTED` | `IN_VALIDATION` | `VERIFIED` | `REJECTED`
 - **Response Format:**
   ```json
   {
-    "submission_id": "sub_12345",
-    "user_id": "usr_9876",
-    "status": "IN_VALIDATION", // UPLOADED | AI_EVALUATING | AUTO_APPROVED | AUTO_REJECTED | IN_VALIDATION | VERIFIED | REJECTED
-    "before_cid": "ipfs://Qm...",
-    "after_cid": "ipfs://Qm...",
+    "submission_id": "sub_789456",
+    "user_id": "usr_123456",
+    "status": "IN_VALIDATION",
+    "before_cid": "ipfs://QmBefore...",
+    "after_cid": "ipfs://QmAfter...",
+    "time_gap_seconds": 1840,
     "ai_score": {
-      "transformation_score": 88.5,
+      "transformation_score": 84.2,
       "location_consistency": true,
       "duplicate_flag": false,
       "verdict": "BORDERLINE"
     },
-    "reward_amount": 25,
-    "created_at": "2026-09-20T10:00:00Z"
+    "validator_votes": {
+      "required": 3,
+      "current_approvals": 2,
+      "current_rejections": 0
+    },
+    "reward_amount": 35,
+    "created_at": "2026-09-20T14:00:00Z"
   }
   ```
 
 ---
 
-## 4. Key Architectural & Security Rules
+## 6. Critical Security & Integration Rule
 
-1. **NO Direct Blockchain Calls from Client:**
-   - The frontend **never** interacts directly with smart contracts or submits transactions to the blockchain node.
-   - All ledger queries (balance, proofs) and state transitions are mediated by the authenticated backend.
-2. **Device Hardware Permissions:**
-   - Handle GPS denial gracefully with clear instructions requiring location services.
-   - Prevent manipulation of client-side timestamps through server-side cross-checks.
-3. **Mocking Strategy:**
-   - Maintain a `/services/mock/` adapter layer so the full UI flow can be demonstrated and tested independently before backend wiring.
+> [!CAUTION]
+> **NO DIRECT BLOCKCHAIN CALLS FROM FRONTEND:**  
+> The client app **never** connects directly to blockchain RPCs, holds private keys, or signs smart contract transactions. All transactions (issuing CleanTO, staking, slashing, recording submission proofs) are triggered exclusively by the authenticated **Backend Service**. The frontend strictly interacts with the Backend REST API.
