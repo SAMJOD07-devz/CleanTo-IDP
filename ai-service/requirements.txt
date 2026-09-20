@@ -1,0 +1,15 @@
+# CleanTO AI Verification Service - 20% Milestone Dependencies
+
+# Core Perceptual Hashing & Image Processing
+imagehash>=4.3.1
+Pillow>=10.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+PyWavelets>=1.4.0
+
+# Optional Pretrained Multi-Modal CLIP (Semantic Embedding Signal)
+# Uncomment to enable full CLIP ViT-B/32 instead of vision-feature fallback:
+# torch>=2.0.0
+# torchvision>=0.15.0
+# sentence-transformers>=2.2.0
+# open-clip-torch>=2.20.0

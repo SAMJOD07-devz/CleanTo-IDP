@@ -8,5 +8,15 @@ export default defineConfig({
     host: true,
     open: false,
     cors: true,
+    proxy: {
+      "/submit": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+    },
   },
 });
