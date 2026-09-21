@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #F7F5F0;
+    color: #171717;
+  }
+  
+  h1, h2, h3, h4 {
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.02em;
+  }
+  
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Editorial Physical Stamp Style */
+.stamp-olive {
+  border: 2px dashed #66724B;
+  color: #4D5737;
+  background-color: rgba(102, 114, 75, 0.08);
+}
+
+.stamp-coral {
+  border: 2px dashed #E84C32;
+  color: #C73820;
+  background-color: rgba(232, 76, 50, 0.08);
+}
+
+/* Subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F7F5F0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D9DCE1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B3B7BF;
+}
