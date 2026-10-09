@@ -26,8 +26,12 @@ BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from app import app
-from db import init_db, insert_submission, get_submission, get_user_balance
+try:
+    from app import app
+    from db import init_db, insert_submission
+except ImportError:
+    from backend.app import app
+    from backend.db import init_db, insert_submission
 
 
 def create_test_image(color=(100, 150, 200), size=(128, 128)) -> bytes:
