@@ -20,7 +20,7 @@ import sys
 import json
 import uuid
 from pathlib import Path
-from PIL import Image
+from PIL import Image  # type: ignore
 
 BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
