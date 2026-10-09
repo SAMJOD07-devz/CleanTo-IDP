@@ -43,9 +43,12 @@ def run_demo():
     exact_dup_after = sample_dir / "exact_dup_after.jpg"
     edited_dup_before = sample_dir / "edited_dup_before.jpg"
     edited_dup_after = sample_dir / "edited_dup_after.jpg"
+    flagged_before = sample_dir / "flagged_before.jpg"
+    flagged_after = sample_dir / "flagged_after.jpg"
+    location_mismatch = sample_dir / "location_mismatch.jpg"
 
     # Verify all sample files exist
-    for p in [genuine_before, genuine_after, exact_dup_before, exact_dup_after, edited_dup_before, edited_dup_after]:
+    for p in [genuine_before, genuine_after, exact_dup_before, exact_dup_after, edited_dup_before, edited_dup_after, flagged_before, flagged_after, location_mismatch]:
         if not p.exists():
             print(f"[ERROR] Sample image missing: {p}")
             return False
@@ -89,7 +92,7 @@ def run_demo():
     print("\n" + "-" * 80)
     print("DEMO CASE 2: Exact Duplicate Resubmission")
     print("Description: Contributor attempts to resubmit the exact same images for a new claim.")
-    print("Expected: verdict == 'duplicate', is_duplicate == True, distance == 0")
+    print("Expected: verdict == 'fail_duplicate', is_duplicate == True, distance == 0")
     print("-" * 80)
 
     res2 = check_duplicate(
@@ -102,7 +105,7 @@ def run_demo():
 
     print("Result:")
     print(json.dumps(res2, indent=2))
-    assert res2["verdict"] == "duplicate", f"Expected 'duplicate', got {res2['verdict']}"
+    assert res2["verdict"] == "fail_duplicate", f"Expected 'fail_duplicate', got {res2['verdict']}"
     assert res2["is_duplicate"] is True, "Expected is_duplicate == True"
     assert any(m["distance"] == 0 for m in res2["matches"]), "Expected exact match with distance 0"
     print(">>> SUCCESS: Exact duplicate correctly FLAGGED and REJECTED.")
@@ -114,7 +117,7 @@ def run_demo():
     print("DEMO CASE 3: Lightly Edited / Cropped Duplicate")
     print("Description: Contributor cropped borders, adjusted brightness/contrast, and recompressed.")
     print("             Standard SHA-256 hash completely fails to catch this.")
-    print("Expected: verdict == 'duplicate', is_duplicate == True, caught via perceptual hash")
+    print("Expected: verdict == 'fail_duplicate', is_duplicate == True, caught via perceptual hash")
     print("-" * 80)
 
     # Note: threshold can be set between 6 and 10 depending on sensitivity policy
@@ -128,7 +131,7 @@ def run_demo():
 
     print("Result:")
     print(json.dumps(res3, indent=2))
-    assert res3["verdict"] == "duplicate", f"Expected 'duplicate', got {res3['verdict']}"
+    assert res3["verdict"] == "fail_duplicate", f"Expected 'fail_duplicate', got {res3['verdict']}"
     assert res3["is_duplicate"] is True, "Expected is_duplicate == True"
     print(">>> SUCCESS: Lightly edited duplicate caught by perceptual hash!")
 
@@ -138,7 +141,7 @@ def run_demo():
     print("\n" + "-" * 80)
     print("DEMO CASE 4: Zero-Cleanup Staged Attack (Before and After are identical)")
     print("Description: Contributor uploads the same photo for both before and after.")
-    print("Expected: verdict == 'duplicate', before_after_phash_distance == 0")
+    print("Expected: verdict == 'fail_duplicate', before_after_phash_distance == 0")
     print("-" * 80)
 
     res4 = check_duplicate(
@@ -151,16 +154,60 @@ def run_demo():
 
     print("Result:")
     print(json.dumps(res4, indent=2))
-    assert res4["verdict"] == "duplicate", f"Expected 'duplicate', got {res4['verdict']}"
+    assert res4["verdict"] == "fail_duplicate", f"Expected 'fail_duplicate', got {res4['verdict']}"
     assert res4["before_after_phash_distance"] == 0, "Expected distance == 0"
     print(">>> SUCCESS: Zero-cleanup submission correctly identified and caught.")
+
+    # -------------------------------------------------------------
+    # DEMO CASE 5: Location Mismatch (Different places)
+    # -------------------------------------------------------------
+    print("\n" + "-" * 80)
+    print("DEMO CASE 5: Location Mismatch")
+    print("Description: The before and after photos are taken at completely different locations.")
+    print("Expected: verdict == 'fail_location_mismatch'")
+    print("-" * 80)
+
+    res5 = check_duplicate(
+        before_path=genuine_before,
+        after_path=location_mismatch,
+        hash_threshold=6,
+        store=store,
+        submission_id="SUBM_DIFF_LOCATION_005"
+    )
+
+    print("Result:")
+    print(json.dumps(res5, indent=2))
+    assert res5["verdict"] == "fail_location_mismatch", f"Expected 'fail_location_mismatch', got {res5['verdict']}"
+    print(">>> SUCCESS: Location mismatch successfully FLAGGED.")
+
+    # -------------------------------------------------------------
+    # DEMO CASE 6: Flagged Review (Poor Cleanup)
+    # -------------------------------------------------------------
+    print("\n" + "-" * 80)
+    print("DEMO CASE 6: Flagged Review (Poor Cleanup)")
+    print("Description: The cleanup score is too low or similarity is borderline.")
+    print("Expected: verdict == 'flagged_review'")
+    print("-" * 80)
+
+    res6 = check_duplicate(
+        before_path=flagged_before,
+        after_path=flagged_after,
+        hash_threshold=6,
+        store=store,
+        submission_id="SUBM_FLAGGED_REVIEW_006"
+    )
+
+    print("Result:")
+    print(json.dumps(res6, indent=2))
+    assert res6["verdict"] == "flagged_review", f"Expected 'flagged_review', got {res6['verdict']}"
+    print(">>> SUCCESS: Poor cleanup successfully routed to FLAGGED REVIEW.")
 
     # Clean up test store
     if test_store_path.exists():
         test_store_path.unlink()
 
     print("\n" + "=" * 80)
-    print("ALL 4 DEMO TEST CASES PASSED SUCCESSFULLY!")
+    print("ALL 6 DEMO TEST CASES PASSED SUCCESSFULLY!")
     print("=" * 80)
     return True
 

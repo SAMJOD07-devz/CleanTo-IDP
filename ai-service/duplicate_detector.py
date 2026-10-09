@@ -23,6 +23,13 @@ from typing import Dict, Any, Optional, List, Tuple, Union
 from PIL import Image
 import numpy as np
 
+# Try importing ultralytics for YOLOv8
+try:
+    from ultralytics import YOLO
+except ImportError:
+    pass  # We will handle it in the function if called
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("CleanTO.DuplicateDetector")
@@ -160,6 +167,44 @@ def get_embedding_engine() -> EmbeddingEngine:
     if _EMBEDDING_ENGINE is None:
         _EMBEDDING_ENGINE = EmbeddingEngine()
     return _EMBEDDING_ENGINE
+
+
+# =====================================================================
+# 1.5 Object Detection Engine (YOLOv8 for Cleanup Score)
+# =====================================================================
+
+_YOLO_MODEL = None
+
+def get_yolo_model():
+    global _YOLO_MODEL
+    if _YOLO_MODEL is None:
+        try:
+            from ultralytics import YOLO
+            _YOLO_MODEL = YOLO("yolov8n.pt")  # Loads the pretrained YOLOv8 Nano model
+        except ImportError:
+            raise ImportError("The 'ultralytics' package is required. Install via: pip install ultralytics")
+    return _YOLO_MODEL
+
+def compute_cleanup_score(before_img: Image.Image, after_img: Image.Image) -> float:
+    """
+    Computes a rough cleanup score based on object/clutter reduction.
+    Uses pretrained YOLOv8 on COCO as a rough heuristic.
+    """
+    model = get_yolo_model()
+    # Predict on PIL images
+    res_before = model(before_img, verbose=False)[0]
+    res_after = model(after_img, verbose=False)[0]
+    
+    before_boxes_count = len(res_before.boxes)
+    after_boxes_count = len(res_after.boxes)
+    
+    if before_boxes_count == 0:
+        return 0.0 # No clutter found in before image to clean up
+        
+    reduction = before_boxes_count - after_boxes_count
+    score = reduction / before_boxes_count
+    return round(float(np.clip(score, 0.0, 1.0)), 4)
+
 
 
 # =====================================================================
@@ -311,8 +356,9 @@ def check_duplicate(
     Returns:
         A dictionary following the agreed interface contract:
         {
-            "verdict": "pass" | "fail" | "duplicate",
+            "verdict": "pass" | "fail_duplicate" | "fail_location_mismatch" | "flagged_review",
             "similarity_score": float,
+            "cleanup_score": float,
             "is_duplicate": bool,
             "duplicate_reason": Optional[str],
             "before_phash": str,
@@ -330,8 +376,9 @@ def check_duplicate(
     # Validate file existence
     if not before_p.exists():
         return {
-            "verdict": "fail",
+            "verdict": "fail_location_mismatch",
             "similarity_score": 0.0,
+            "cleanup_score": 0.0,
             "is_duplicate": False,
             "duplicate_reason": f"Before image file not found: {before_path}",
             "matches": [],
@@ -339,8 +386,9 @@ def check_duplicate(
         }
     if not after_p.exists():
         return {
-            "verdict": "fail",
+            "verdict": "fail_location_mismatch",
             "similarity_score": 0.0,
+            "cleanup_score": 0.0,
             "is_duplicate": False,
             "duplicate_reason": f"After image file not found: {after_path}",
             "matches": [],
@@ -353,8 +401,9 @@ def check_duplicate(
         after_phash, after_dhash, after_img = compute_hashes(after_p)
     except Exception as e:
         return {
-            "verdict": "fail",
+            "verdict": "fail_location_mismatch",
             "similarity_score": 0.0,
+            "cleanup_score": 0.0,
             "is_duplicate": False,
             "duplicate_reason": f"Failed to decode images: {e}",
             "matches": [],
@@ -365,8 +414,9 @@ def check_duplicate(
     before_after_dist = before_phash - after_phash
     if before_after_dist == 0:
         return {
-            "verdict": "duplicate",
+            "verdict": "fail_duplicate",
             "similarity_score": 1.0,
+            "cleanup_score": 0.0,
             "is_duplicate": True,
             "duplicate_reason": "Before and After photos are identical (zero cleanup occurred).",
             "before_phash": str(before_phash),
@@ -410,28 +460,44 @@ def check_duplicate(
     engine = get_embedding_engine()
     similarity_score = engine.compute_similarity(before_img, after_img)
 
+    # 5. Cleanup Score (Signal 3)
+    cleanup_score = compute_cleanup_score(before_img, after_img)
+
     is_duplicate = len(all_matches) > 0
 
     if is_duplicate:
-        verdict = "duplicate"
+        verdict = "fail_duplicate"
         duplicate_reason = "; ".join(duplicate_reasons)
     else:
-        verdict = "pass"
         duplicate_reason = None
-        # If auto_register is requested, save this genuine submission
-        if auto_register:
-            sub_id = submission_id or f"sub_{int(Path(before_path).stat().st_mtime)}"
-            store.add_submission(
-                submission_id=sub_id,
-                before_phash=str(before_phash),
-                after_phash=str(after_phash),
-                before_dhash=str(before_dhash),
-                after_dhash=str(after_dhash)
-            )
+        # Thresholds derived from testing
+        LOCATION_SIMILARITY_FAIL_THRESH = 0.50
+        LOCATION_SIMILARITY_FLAG_THRESH = 0.70
+        CLEANUP_SCORE_FLAG_THRESH = 0.10
+
+        if similarity_score < LOCATION_SIMILARITY_FAIL_THRESH:
+            verdict = "fail_location_mismatch"
+        elif similarity_score < LOCATION_SIMILARITY_FLAG_THRESH:
+            verdict = "flagged_review"
+        elif cleanup_score < CLEANUP_SCORE_FLAG_THRESH:
+            verdict = "flagged_review"
+        else:
+            verdict = "pass"
+            # If auto_register is requested, save this genuine submission
+            if auto_register:
+                sub_id = submission_id or f"sub_{int(Path(before_path).stat().st_mtime)}"
+                store.add_submission(
+                    submission_id=sub_id,
+                    before_phash=str(before_phash),
+                    after_phash=str(after_phash),
+                    before_dhash=str(before_dhash),
+                    after_dhash=str(after_dhash)
+                )
 
     return {
         "verdict": verdict,
         "similarity_score": similarity_score,
+        "cleanup_score": cleanup_score,
         "is_duplicate": is_duplicate,
         "duplicate_reason": duplicate_reason,
         "before_phash": str(before_phash),
