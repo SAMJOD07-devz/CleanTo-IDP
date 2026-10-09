@@ -1,5 +1,9 @@
 {
   "python.defaultInterpreterPath": "C:\\Users\\SAUMYA\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "none",
+    "reportMissingModuleSource": "none"
+  },
   "python.analysis.extraPaths": [
     "./backend",
     "./ai-service"

@@ -21,12 +21,12 @@ import logging
 import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple, Union
-from PIL import Image
-import numpy as np
+from PIL import Image  # type: ignore
+import numpy as np  # type: ignore
 
 # Try importing ultralytics for YOLOv8
 try:
-    from ultralytics import YOLO
+    from ultralytics import YOLO  # type: ignore
 except ImportError:
     pass  # We will handle it in the function if called
 
@@ -37,7 +37,7 @@ logger = logging.getLogger("CleanTO.DuplicateDetector")
 
 # Try importing imagehash
 try:
-    import imagehash
+    import imagehash  # type: ignore
 except ImportError:
     raise ImportError("The 'imagehash' package is required. Install via: pip install imagehash")
 
@@ -68,7 +68,7 @@ class EmbeddingEngine:
 
         # 1. Try sentence-transformers (clip-ViT-B-32)
         try:
-            from sentence_transformers import SentenceTransformer
+            from sentence_transformers import SentenceTransformer  # type: ignore
             self.model = SentenceTransformer("clip-ViT-B-32")
             self.backend = "sentence-transformers-clip"
             logger.info("Initialized CLIP via sentence-transformers (clip-ViT-B-32)")
@@ -78,8 +78,8 @@ class EmbeddingEngine:
 
         # 2. Try open_clip
         try:
-            import open_clip
-            import torch
+            import open_clip  # type: ignore
+            import torch  # type: ignore
             model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
             model.eval()
             self.model = model
@@ -92,7 +92,7 @@ class EmbeddingEngine:
 
         # 3. Try transformers (CLIPVisionModelWithProjection)
         try:
-            from transformers import CLIPProcessor, CLIPModel
+            from transformers import CLIPProcessor, CLIPModel  # type: ignore
             self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
             self.preprocess = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
             self.backend = "transformers-clip"
@@ -180,7 +180,7 @@ def get_yolo_model():
     global _YOLO_MODEL
     if _YOLO_MODEL is None:
         try:
-            from ultralytics import YOLO
+            from ultralytics import YOLO  # type: ignore
             _YOLO_MODEL = YOLO("yolov8n.pt")  # Loads the pretrained YOLOv8 Nano model
         except Exception as e:
             logger.info("YOLOv8 not available (%s); using visual clutter reduction heuristic.", e)
