@@ -1,6 +1,6 @@
-# CleanTO Backend (Review II — 20% Milestone)
+# CleanTO Backend (30% Milestone)
 
-Minimal Flask backend with SQLite persistence for image cleanup verification.
+Flask REST API and persistence layer connecting the AI verification pipeline, SQLite database, human validator workflow, and local smart contract ledger.
 
 ---
 
@@ -24,9 +24,9 @@ The server will start at: `http://localhost:5000` (or `http://127.0.0.1:5000`).
 
 ---
 
-## 3. Run Self-Test Verification
+## 3. Run Automated Tests
 
-Run the automated test suite to verify endpoints and SQLite database persistence without starting a server:
+Run the self-contained automated test suite validating all milestone contracts and workflows:
 
 ```bash
 python test_api.py
@@ -34,79 +34,59 @@ python test_api.py
 
 ---
 
-## 4. Manual API Testing (cURL / PowerShell)
+## 4. API Endpoints Contract
 
-### A. Health Check
-**cURL:**
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/submit` | `POST` | Upload multipart `before` and `after` images. Runs AI checks, routes to auto-pass + blockchain reward, flagged review, or duplicate/location failure. |
+| `/submissions/<id>` | `GET` | Retrieve complete details of a submission (scores, verdict, blockchain tx hash). |
+| `/submissions` | `GET` | List recent submissions. |
+| `/validator/queue` | `GET` | List all submissions currently awaiting human reviewer verdict (`flagged_review`). |
+| `/validator/review` | `POST` | Review a flagged submission (`approve` or `reject`). Triggers blockchain reward on approval. |
+| `/users/<id>/balance` | `GET` | Get real CleanTO balance and verified cleanup count (smart contract / database mirror). |
+| `/health` | `GET` | Health check endpoint. |
+
+---
+
+## 5. Developer CLI Testing Tool (`dev_test.py`)
+
+Test the complete flow without opening the frontend:
+
 ```bash
-curl http://localhost:5000/health
-```
+# 1. Test auto-pass submission and reward
+python dev_test.py submit-pass usr_demo
 
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:5000/health" -Method Get
+# 2. Test duplicate detection
+python dev_test.py submit-dup usr_demo
+
+# 3. Check validator queue
+python dev_test.py queue
+
+# 4. Review a flagged submission (approve / reject)
+python dev_test.py review <submission_id> approve
+
+# 5. Check user balance
+python dev_test.py balance usr_demo
 ```
 
 ---
 
-### B. Submit Cleanup Photos (`POST /submit`)
+## 6. Database Schema (SQLite: `cleanto.db`)
 
-**cURL:**
-```bash
-curl -X POST http://localhost:5000/submit \
-  -F "before=@../ai-service/sample_images/sample_before_1.jpg" \
-  -F "after=@../ai-service/sample_images/sample_after_1.jpg"
-```
-
-**PowerShell:**
-```powershell
-$form = @{
-    before = Get-Item "..\ai-service\sample_images\sample_before_1.jpg"
-    after  = Get-Item "..\ai-service\sample_images\sample_after_1.jpg"
-}
-$response = Invoke-RestMethod -Uri "http://localhost:5000/submit" -Method Post -Form $form
-$response | ConvertTo-Json
-```
-
-**Expected JSON Response:**
-```json
-{
-  "submission_id": "sub_a1b2c3d4",
-  "verdict": "pass",
-  "similarity_score": 88.5,
-  "created_at": "2026-09-20T17:15:00.000Z",
-  "is_duplicate": false
-}
-```
-
----
-
-### C. Get Stored Submission (`GET /submissions/{id}`)
-
-**cURL:**
-```bash
-curl http://localhost:5000/submissions/sub_a1b2c3d4
-```
-
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:5000/submissions/sub_a1b2c3d4" -Method Get | ConvertTo-Json
-```
-
-**Expected JSON Response:**
-```json
-{
-  "submission_id": "sub_a1b2c3d4",
-  "user_id": "usr_demo",
-  "verdict": "pass",
-  "similarity_score": 88.5,
-  "created_at": "2026-09-20T17:15:00.000Z"
-}
-```
-
----
-
-## 5. Database Schema (SQLite: `cleanto.db`)
-
-* **`User`**: `id` (TEXT PRIMARY KEY), `name` (TEXT)
-* **`Submission`**: `id` (TEXT PRIMARY KEY), `user_id` (TEXT), `before_path` (TEXT), `after_path` (TEXT), `verdict` (TEXT), `similarity_score` (REAL), `created_at` (TIMESTAMP)
+* **`User`**:
+  * `id` (TEXT PRIMARY KEY)
+  * `name` (TEXT)
+  * `balance` (REAL)
+  * `cleanup_count` (INTEGER)
+* **`Submission`**:
+  * `id` (TEXT PRIMARY KEY)
+  * `user_id` (TEXT)
+  * `before_path` (TEXT)
+  * `after_path` (TEXT)
+  * `verdict` (TEXT) — `pass`, `fail_duplicate`, `fail_location_mismatch`, `flagged_review`, `approved_by_validator`, `rejected_by_validator`
+  * `similarity_score` (REAL)
+  * `cleanup_score` (REAL)
+  * `tx_hash` (TEXT)
+  * `reward_amount` (REAL)
+  * `created_at` (TIMESTAMP)
+  * `updated_at` (TIMESTAMP)

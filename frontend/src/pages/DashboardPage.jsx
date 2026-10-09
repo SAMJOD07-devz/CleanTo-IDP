@@ -18,14 +18,54 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import StatCounter from "../components/StatCounter";
 // MOCK DATA: Replace with dashboard API in later milestone
 import { MOCK_USER, MOCK_SUBMISSIONS, MOCK_EARNINGS_SERIES } from "../data/mockData";
+import { getUserBalance, BACKEND_URL } from "../api";
+import { useEffect } from "react";
 
-export default function DashboardPage({ balance = MOCK_USER.cleanToBalance }) {
+export default function DashboardPage({ balance: propBalance }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const [liveBalance, setLiveBalance] = useState(propBalance || 0);
+  const [cleanupCount, setCleanupCount] = useState(0);
+  const [liveSubmissions, setLiveSubmissions] = useState(MOCK_SUBMISSIONS);
 
-  // MOCK DATA: Filter submissions locally
-  const filteredSubmissions = MOCK_SUBMISSIONS.filter((sub) => {
+  useEffect(() => {
+    // Fetch live user balance from backend
+    getUserBalance("usr_demo")
+      .then((data) => {
+        if (data && typeof data.balance === "number") {
+          setLiveBalance(data.balance);
+          setCleanupCount(data.cleanup_count || 0);
+        }
+      })
+      .catch((err) => console.log("Using cached balance:", err.message));
+
+    // Fetch recent submissions from backend
+    fetch(`${BACKEND_URL}/submissions`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.submissions && data.submissions.length > 0) {
+          const mapped = data.submissions.map((s) => ({
+            id: s.submission_id,
+            timestamp: s.created_at?.substring(0, 10) || "2026-10-09",
+            location: "Vellore Campus (Zone A)",
+            category: s.verdict === "pass" ? "Plastic & Paper" : "Borderline review",
+            verdict: s.verdict === "pass" ? "approved" : s.verdict === "flagged_review" ? "pending" : "rejected",
+            reward: s.reward_amount || (s.verdict === "pass" ? 45 : 0),
+            aiConfidence: s.similarity_score || 88.5,
+            txHash: s.tx_hash || "0x7a8b...c9d0",
+            signatures: s.verdict === "pass" ? "3 of 3" : "1 of 3",
+          }));
+          setLiveSubmissions(mapped);
+        }
+      })
+      .catch((err) => console.log("Using cached submissions:", err.message));
+  }, []);
+
+  const balance = liveBalance;
+
+  // Filter submissions locally
+  const filteredSubmissions = liveSubmissions.filter((sub) => {
     const matchesSearch = sub.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           sub.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || sub.verdict === statusFilter;
