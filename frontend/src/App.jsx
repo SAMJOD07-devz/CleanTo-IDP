@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { HashRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Toaster, toast } from "sonner";
@@ -16,10 +16,10 @@ import ValidatorPage from "./pages/ValidatorPage";
 import RedeemPage from "./pages/RedeemPage";
 import AboutPage from "./pages/AboutPage";
 
-// Initial user mock balance
-import { MOCK_USER } from "./data/mockData";
+// API
+import { getUserBalance } from "./api";
 
-function AnimatedRoutes({ balance, mockScenario, onRewardEarned, onRedeem }) {
+function AnimatedRoutes({ balance, devOverride, onRewardEarned, onRedeem }) {
   const location = useLocation();
 
   return (
@@ -38,7 +38,7 @@ function AnimatedRoutes({ balance, mockScenario, onRewardEarned, onRedeem }) {
             path="/submit" 
             element={
               <SubmitPage 
-                mockScenario={mockScenario} 
+                devOverride={devOverride} 
                 onRewardEarned={onRewardEarned} 
               />
             } 
@@ -54,8 +54,24 @@ function AnimatedRoutes({ balance, mockScenario, onRewardEarned, onRedeem }) {
 }
 
 export default function App() {
-  const [balance, setBalance] = useState(MOCK_USER.cleanToBalance);
-  const [mockScenario, setMockScenario] = useState("pass");
+  const [balance, setBalance] = useState(0);
+  const [devOverride, setDevOverride] = useState(null); // null means Live Backend!
+
+  // Sync real balance from backend/blockchain on mount
+  useEffect(() => {
+    async function syncBalance() {
+      try {
+        const data = await getUserBalance("usr_demo");
+        if (data && typeof data.balance === "number") {
+          setBalance(data.balance);
+        }
+      } catch (e) {
+        // Fallback default
+        setBalance(75);
+      }
+    }
+    syncBalance();
+  }, []);
 
   const handleRewardEarned = (amount) => {
     setBalance((prev) => prev + amount);
@@ -75,17 +91,17 @@ export default function App() {
         <main className="flex-1">
           <AnimatedRoutes
             balance={balance}
-            mockScenario={mockScenario}
+            devOverride={devOverride}
             onRewardEarned={handleRewardEarned}
             onRedeem={handleRedeem}
           />
         </main>
         <Footer />
         
-        {/* Discreet Hidden Demo Drawer */}
+        {/* Hidden Dev & Demo Panel (Triggered by Ctrl+Shift+D or micro-gear) */}
         <DevDrawer 
-          mockScenario={mockScenario} 
-          onScenarioChange={setMockScenario} 
+          devOverride={devOverride} 
+          onOverrideChange={setDevOverride} 
         />
 
         {/* Sonner Editorial Toast System */}
