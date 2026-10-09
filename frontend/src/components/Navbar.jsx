@@ -33,7 +33,7 @@ export default function Navbar({ balance = MOCK_USER.cleanToBalance }) {
       <div className="border-b border-[#E5E7EB] bg-[#ECE9E2] text-[11px] font-mono text-[#525252] px-4 py-1 flex items-center justify-between">
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
           <span>CIVIC CLEANUP VERIFICATION &middot; PERMISSIONED CONSORTIUM LEDGER</span>
-          <span className="hidden sm:inline-block">REVIEW II SPEC &middot; ZERO OPEN SPECULATION</span>
+          <span className="hidden sm:inline-block">30% MILESTONE &middot; MULTI-SIGNAL AI &amp; ON-CHAIN REWARDS</span>
         </div>
       </div>
 

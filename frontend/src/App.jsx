@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { HashRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Toaster, toast } from "sonner";
@@ -7,6 +7,7 @@ import { Toaster, toast } from "sonner";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import DevDrawer from "./components/DevDrawer";
+import IntroScene from "./components/IntroScene";
 
 // Pages
 import LandingPage from "./pages/LandingPage";
@@ -16,10 +17,19 @@ import ValidatorPage from "./pages/ValidatorPage";
 import RedeemPage from "./pages/RedeemPage";
 import AboutPage from "./pages/AboutPage";
 
-// Initial user mock balance
-import { MOCK_USER } from "./data/mockData";
+// API
+import { getUserBalance } from "./api";
 
-function AnimatedRoutes({ balance, mockScenario, onRewardEarned, onRedeem }) {
+// In-memory flag: Resets on page refresh/reload so intro ALWAYS plays on fresh reload,
+// but stays true across internal client-side navigation (Submit -> Dashboard -> Home)
+let introCompletedInMemory = false;
+
+// Clear stale sessionStorage keys from previous builds
+try {
+  sessionStorage.removeItem("cleanto_intro_seen");
+} catch (e) {}
+
+function AnimatedRoutes({ balance, devOverride, onRewardEarned, onRedeem }) {
   const location = useLocation();
 
   return (
@@ -38,7 +48,7 @@ function AnimatedRoutes({ balance, mockScenario, onRewardEarned, onRedeem }) {
             path="/submit" 
             element={
               <SubmitPage 
-                mockScenario={mockScenario} 
+                devOverride={devOverride} 
                 onRewardEarned={onRewardEarned} 
               />
             } 
@@ -54,8 +64,27 @@ function AnimatedRoutes({ balance, mockScenario, onRewardEarned, onRedeem }) {
 }
 
 export default function App() {
-  const [balance, setBalance] = useState(MOCK_USER.cleanToBalance);
-  const [mockScenario, setMockScenario] = useState("pass");
+  const [balance, setBalance] = useState(0);
+  const [devOverride, setDevOverride] = useState(null); // null means Live Backend!
+  
+  // Always true on fresh reload/page load; false only after intro has played within this session
+  const [showIntro, setShowIntro] = useState(() => !introCompletedInMemory);
+
+  // Sync real balance from backend/blockchain on mount
+  useEffect(() => {
+    async function syncBalance() {
+      try {
+        const data = await getUserBalance("usr_demo");
+        if (data && typeof data.balance === "number") {
+          setBalance(data.balance);
+        }
+      } catch (e) {
+        // Fallback default
+        setBalance(75);
+      }
+    }
+    syncBalance();
+  }, []);
 
   const handleRewardEarned = (amount) => {
     setBalance((prev) => prev + amount);
@@ -68,24 +97,43 @@ export default function App() {
     setBalance((prev) => Math.max(0, prev - cost));
   };
 
+  const handleIntroComplete = () => {
+    introCompletedInMemory = true;
+    setShowIntro(false);
+  };
+
+  const handleReplayIntro = () => {
+    introCompletedInMemory = false;
+    setShowIntro(true);
+  };
+
   return (
     <Router>
-      <div className="min-h-screen bg-[#F7F5F0] text-[#171717] flex flex-col font-sans selection:bg-[#E84C32] selection:text-white">
+      <div className="min-h-screen bg-[#F7F5F0] text-[#171717] flex flex-col font-sans selection:bg-[#E84C32] selection:text-white relative">
+        
+        {/* 3D Intro Scene: Shown on every fresh page load/reload, hands off to LandingPage */}
+        <AnimatePresence>
+          {showIntro && (
+            <IntroScene onComplete={handleIntroComplete} />
+          )}
+        </AnimatePresence>
+
         <Navbar balance={balance} />
         <main className="flex-1">
           <AnimatedRoutes
             balance={balance}
-            mockScenario={mockScenario}
+            devOverride={devOverride}
             onRewardEarned={handleRewardEarned}
             onRedeem={handleRedeem}
           />
         </main>
         <Footer />
         
-        {/* Discreet Hidden Demo Drawer */}
+        {/* Hidden Dev & Demo Panel (Triggered by Ctrl+Shift+D or micro-gear) */}
         <DevDrawer 
-          mockScenario={mockScenario} 
-          onScenarioChange={setMockScenario} 
+          devOverride={devOverride} 
+          onOverrideChange={setDevOverride}
+          onReplayIntro={handleReplayIntro}
         />
 
         {/* Sonner Editorial Toast System */}

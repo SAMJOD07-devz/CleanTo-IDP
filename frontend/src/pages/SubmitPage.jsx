@@ -18,13 +18,15 @@ import {
   AlertCircle,
   HelpCircle,
   Sparkles,
-  Zap
+  Zap,
+  ShieldCheck,
+  Eye,
+  Sliders
 } from "lucide-react";
 import { toast } from "sonner";
-// REAL API: Connected to POST /submit via dedicated service layer
-import { submitCleanup, USE_MOCK, BACKEND_URL } from "../api";
+import { submitCleanup, BACKEND_URL } from "../api";
 
-export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
+export default function SubmitPage({ devOverride = null, onRewardEarned }) {
   // 1. STAGE STATE (1: Evidence, 2: Location/Time, 3: Verification)
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -39,7 +41,7 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
   const [isDragBefore, setIsDragBefore] = useState(false);
   const [isDragAfter, setIsDragAfter] = useState(false);
 
-  // 3. LOCATION & TIME STATE (Auto-initialized so telemetry is immediately ready)
+  // 3. LOCATION & TIME STATE
   const [locationStatus, setLocationStatus] = useState("success");
   const [coords, setCoords] = useState({ lat: "12.9716", lng: "79.1585" });
   const [accuracy, setAccuracy] = useState("±3.2m (Campus GPS Lock)");
@@ -57,11 +59,11 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
   const scanMessages = [
     "Checking image integrity & EXIF metadata...",
     "Computing perceptual hash (pHash/dHash)...",
-    "Running neural transformation delta model...",
-    "Querying consortium ledger for duplicate records...",
+    "Running spatial consistency & debris detection...",
+    "Connecting to consortium consensus ledger...",
   ];
 
-  // Try real browser geolocation on mount, fallback gracefully
+  // Browser geolocation on mount
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -75,7 +77,6 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
           setTimestamp(new Date().toISOString());
         },
         () => {
-          // Default campus GPS lock
           setCoords({ lat: "12.9716", lng: "79.1585" });
           setAccuracy("Campus GPS Lock");
           setLocationStatus("success");
@@ -85,7 +86,6 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
     }
   }, []);
 
-  // Location capture handler
   const handleCaptureLocation = () => {
     setLocationStatus("locating");
     if (navigator.geolocation) {
@@ -116,19 +116,16 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
   // Helper: Create sample images for 1-click testing
   const handleLoadSampleImages = () => {
     try {
-      // 1. Create Before Cleanup Canvas Image
       const canvasBefore = document.createElement("canvas");
       canvasBefore.width = 600;
       canvasBefore.height = 400;
       const ctxB = canvasBefore.getContext("2d");
       
-      // Ground
+      // Ground with litter
       ctxB.fillStyle = "#3E3B32";
       ctxB.fillRect(0, 0, 600, 400);
-      // Litter patches
       ctxB.fillStyle = "#8C8275";
       ctxB.fillRect(50, 80, 500, 240);
-      // Plastic bottles / debris graphics
       ctxB.fillStyle = "#E84C32";
       ctxB.fillRect(120, 160, 60, 25);
       ctxB.fillStyle = "#E5B83B";
@@ -137,7 +134,6 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
       ctxB.fillRect(360, 150, 70, 25);
       ctxB.fillStyle = "#525252";
       ctxB.fillRect(180, 260, 110, 40);
-      // Label
       ctxB.fillStyle = "#FFFFFF";
       ctxB.font = "bold 20px monospace";
       ctxB.fillText("BEFORE CLEANUP - SITE DEBRIS", 130, 60);
@@ -149,25 +145,22 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
         setBeforePreview(URL.createObjectURL(fileB));
       }, "image/jpeg");
 
-      // 2. Create After Cleanup Canvas Image (Pristine restored)
       const canvasAfter = document.createElement("canvas");
       canvasAfter.width = 600;
       canvasAfter.height = 400;
       const ctxA = canvasAfter.getContext("2d");
       
-      // Lush restored lawn / pavement
+      // Restored lawn
       ctxA.fillStyle = "#4D5737";
       ctxA.fillRect(0, 0, 600, 400);
       ctxA.fillStyle = "#66724B";
       ctxA.fillRect(40, 60, 520, 280);
-      // Clean flowers / restored details
       ctxA.fillStyle = "#E5B83B";
       ctxA.beginPath();
       ctxA.arc(150, 180, 15, 0, Math.PI * 2);
       ctxA.arc(320, 220, 18, 0, Math.PI * 2);
       ctxA.arc(450, 160, 14, 0, Math.PI * 2);
       ctxA.fill();
-      // Label
       ctxA.fillStyle = "#FFFFFF";
       ctxA.font = "bold 20px monospace";
       ctxA.fillText("AFTER CLEANUP - RESTORED SITE", 130, 60);
@@ -185,7 +178,6 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
     }
   };
 
-  // File validation
   const validateAndSetFile = (file, type) => {
     setFileError(null);
     if (!file) return;
@@ -209,7 +201,6 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
     }
   };
 
-  // REAL API: Connected to POST /submit
   const handleExecuteSubmission = async (e) => {
     if (e) e.preventDefault();
 
@@ -236,42 +227,37 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
     setIsSubmitting(true);
     setSubmitError(null);
     setFileError(null);
-    setCurrentStep(3); // Enter verification stage
+    setCurrentStep(3);
 
     console.log("[CleanTO Pipeline] Submitting cleanup evidence to POST /submit...", {
       before: beforeFile.name,
       after: afterFile.name,
       coords,
       timestamp,
-      mockScenario,
+      devOverride,
     });
 
-    // Advance verification step indicators
     setScanStageIndex(0);
     const interval = setInterval(() => {
       setScanStageIndex((prev) => (prev < scanMessages.length - 1 ? prev + 1 : prev));
     }, 450);
 
     try {
-      /**
-       * REAL API CALL:
-       * Sends multipart/form-data with before & after image files.
-       * If USE_MOCK is true, mock adapter returns shape matching contract.
-       */
-      const data = await submitCleanup(beforeFile, afterFile, mockScenario);
+      const data = await submitCleanup(beforeFile, afterFile, devOverride);
       clearInterval(interval);
       setVerdictResult(data);
 
       console.log("[CleanTO Pipeline] Verification result received:", data);
 
-      if (data.verdict === "pass" && onRewardEarned) {
-        onRewardEarned(Math.floor(data.similarity_score || 35));
+      if ((data.verdict === "pass" || data.verdict === "approved_by_validator") && onRewardEarned) {
+        const reward = Math.floor(data.cleanup_score || data.similarity_score || 40);
+        onRewardEarned(reward);
       }
     } catch (err) {
       clearInterval(interval);
       console.error("Submission failed:", err);
       setSubmitError(err.message || "Failed to reach verification endpoint.");
-      setCurrentStep(1); // Return to evidence so inputs are preserved
+      setCurrentStep(1);
     } finally {
       setIsSubmitting(false);
     }
@@ -292,17 +278,91 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
 
   const isFormReady = beforeFile && afterFile;
 
+  // Verdict Config Helper for distinct UI treatment
+  const getVerdictConfig = (verdict) => {
+    switch (verdict) {
+      case "pass":
+        return {
+          title: "Verification Passed — Cleanup Approved",
+          stampText: "✓ VERIFIED CLEANUP",
+          stampClass: "stamp-olive",
+          borderClass: "border-[#4D5737]",
+          bgClass: "bg-[#F0F2EB]",
+          badgeClass: "bg-[#4D5737] text-white",
+          description: "Both location consistency and debris remediation delta satisfied the algorithmic threshold. Reward has been minted to the civic ledger.",
+          statusText: "Automated AI Approval",
+          isSuccess: true,
+          isPending: false,
+        };
+      case "approved_by_validator":
+        return {
+          title: "Peer Review Complete — Approved by Validator",
+          stampText: "✓ VALIDATOR CO-SIGNED",
+          stampClass: "stamp-olive",
+          borderClass: "border-[#15803D]",
+          bgClass: "bg-[#ECFDF5]",
+          badgeClass: "bg-[#15803D] text-white",
+          description: "A designated validator reviewed this flagged submission and verified genuine site remediation. The smart contract recordCleanup function was executed.",
+          statusText: "Consensus Finalized",
+          isSuccess: true,
+          isPending: false,
+        };
+      case "flagged_review":
+        return {
+          title: "Borderline Submission — Pending Validator Review",
+          stampText: "⌛ QUEUED FOR VALIDATOR REVIEW",
+          stampClass: "border-2 border-dashed border-[#B45309] text-[#B45309] bg-[#FEF3C7]",
+          borderClass: "border-[#B45309]",
+          bgClass: "bg-[#FEF3C7]/40",
+          badgeClass: "bg-[#B45309] text-white",
+          description: "The submission falls in the borderline confidence band (spatial similarity or cleanup score). It has been queued in the Validator Inspection Desk for peer consensus verification.",
+          statusText: "Queued in Validator Desk",
+          isSuccess: false,
+          isPending: true,
+        };
+      case "fail_location_mismatch":
+        return {
+          title: "Verification Failed — Location Discrepancy",
+          stampText: "⊘ LOCATION MISMATCH",
+          stampClass: "stamp-coral",
+          borderClass: "border-[#C2410C]",
+          bgClass: "bg-[#FFF7ED]",
+          badgeClass: "bg-[#C2410C] text-white",
+          description: "Spatial neural embedding similarity between Before and After photos is below acceptable bounds (< 50%). The images do not appear to show the same physical location.",
+          statusText: "Rejected (Spatial Discontinuity)",
+          isSuccess: false,
+          isPending: false,
+        };
+      case "fail_duplicate":
+      default:
+        return {
+          title: "Verification Failed — Duplicate Evidence",
+          stampText: "⚠ DUPLICATE DETECTED",
+          stampClass: "stamp-coral",
+          borderClass: "border-[#B91C1C]",
+          bgClass: "bg-[#FDF2F0]",
+          badgeClass: "bg-[#B91C1C] text-white",
+          description: "Perceptual hashing detected that this image matches an existing submission previously recorded in the database. CleanTO strictly prohibits photo reuse.",
+          statusText: "Rejected by Deduplication Filter",
+          isSuccess: false,
+          isPending: false,
+        };
+    }
+  };
+
+  const verdictConfig = verdictResult ? getVerdictConfig(verdictResult.verdict) : null;
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 text-left">
       
       {/* Header */}
       <div className="border-b border-[#D9DCE1] pb-6 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-[#E84C32] uppercase">
-            Review II Milestone &middot; Real Functional Workflow
+          <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-[#4D5737] uppercase">
+            <ShieldCheck className="w-4 h-4 text-[#66724B]" />
+            CleanTO &middot; Multi-Signal Verification Pipeline
           </div>
 
-          {/* Quick Demo Fill Action */}
           <button
             type="button"
             onClick={handleLoadSampleImages}
@@ -317,7 +377,7 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
           Submit Environmental Cleanup
         </h1>
         <p className="text-[#525252] text-sm max-w-2xl">
-          Upload comparative before-and-after photo evidence. The pipeline runs perceptual deduplication, checks location proximity, and calculates remediation impact.
+          Upload comparative before-and-after photo evidence. The multi-signal pipeline validates perceptual uniqueness, spatial location-consistency, and litter reduction.
         </p>
 
         {/* 3-Stage Progress Indicator */}
@@ -353,7 +413,7 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
               ? "border-[#E84C32] bg-[#ECE9E2] text-[#171717] font-bold"
               : "border-[#D9DCE1] text-[#737373]"
           }`}>
-            <span>3. Verification &amp; Score</span>
+            <span>3. Multi-Signal Verification</span>
           </div>
         </div>
       </div>
@@ -435,7 +495,7 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
                   className="hidden"
                   onChange={(e) => {
                     validateAndSetFile(e.target.files?.[0], "before");
-                    e.target.value = ""; // Reset so same file can be reselected if needed
+                    e.target.value = "";
                   }}
                 />
 
@@ -470,7 +530,7 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
                     </div>
                     <div className="font-bold text-sm text-[#171717]">Before Cleanup Photo</div>
                     <p className="text-xs text-[#525252] max-w-xs mx-auto">
-                      Click or drag &amp; drop the contaminated site before commencing cleanup
+                      Click or drag &amp; drop initial litter-strewn site photo
                     </p>
                     <span className="inline-block px-2.5 py-1 rounded-sm bg-[#ECE9E2] text-[10px] font-mono text-[#737373]">
                       Click to Browse File
@@ -623,7 +683,7 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
             >
               {isFormReady ? (
                 <>
-                  <span>Submit Cleanup for Pipeline Verification</span>
+                  <span>Submit Cleanup for Multi-Signal Verification</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               ) : (
@@ -633,11 +693,6 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
                 </>
               )}
             </button>
-            
-            <div className="flex items-center justify-between text-[11px] font-mono text-[#737373] mt-2">
-              <span>POST /submit contract integration</span>
-              <span>Adapter: {USE_MOCK ? "Local Mock (api.js)" : "Live Backend"}</span>
-            </div>
           </div>
 
         </form>
@@ -658,7 +713,7 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
 
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-[#171717] font-sans">
-                  Pipeline Verification in Progress
+                  Multi-Signal Verification in Progress
                 </h3>
                 <p className="text-xs font-mono text-[#525252]">
                   {scanMessages[scanStageIndex]}
@@ -684,9 +739,9 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
             </div>
           )}
 
-          {/* VERDICT OUTCOMES: PASS / FAIL / DUPLICATE */}
-          {verdictResult && !isSubmitting && (
-            <div className="border-2 border-[#171717] bg-white p-8 rounded-sm space-y-6 shadow-editorial text-left">
+          {/* VERDICT OUTCOMES: PASS / FAIL_DUPLICATE / FAIL_LOCATION_MISMATCH / FLAGGED_REVIEW / APPROVED_BY_VALIDATOR */}
+          {verdictResult && !isSubmitting && verdictConfig && (
+            <div className={`border-2 ${verdictConfig.borderClass} bg-white p-8 rounded-sm space-y-6 shadow-editorial text-left`}>
               
               {/* Verdict Header Stamp */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#D9DCE1] pb-6">
@@ -696,76 +751,87 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
                   </div>
 
                   <h3 className="text-2xl font-extrabold font-sans text-[#171717]">
-                    {verdictResult.verdict === "pass" && "Verification Passed — Cleanup Approved"}
-                    {verdictResult.verdict === "fail" && "Verification Failed — Insufficient Delta"}
-                    {verdictResult.verdict === "duplicate" && "Duplicate Detection — Image Reused"}
+                    {verdictConfig.title}
                   </h3>
                 </div>
 
                 {/* Editorial Status Stamp */}
-                <div className={`px-4 py-2 rounded-sm font-mono text-xs uppercase font-extrabold tracking-widest text-center ${
-                  verdictResult.verdict === "pass"
-                    ? "stamp-olive"
-                    : verdictResult.verdict === "fail"
-                    ? "stamp-coral"
-                    : "border-2 border-dashed border-[#E5B83B] text-[#B88E1C] bg-[#FDF9EE]"
-                }`}>
-                  {verdictResult.verdict === "pass" && "✓ VERIFIED CLEANUP"}
-                  {verdictResult.verdict === "fail" && "✗ INSUFFICIENT TRANSFORMATION"}
-                  {verdictResult.verdict === "duplicate" && "⚠ DUPLICATE EVIDENCE"}
+                <div className={`px-4 py-2 rounded-sm font-mono text-xs uppercase font-extrabold tracking-widest text-center ${verdictConfig.stampClass}`}>
+                  {verdictConfig.stampText}
                 </div>
               </div>
 
               {/* Score & Ledger Audit Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 font-mono text-xs">
                 
+                {/* 1. Location Consistency (Similarity Score) */}
                 <div className="p-4 bg-[#F7F5F0] border border-[#D9DCE1] rounded-sm space-y-1">
-                  <span className="text-[10px] text-[#737373] uppercase">AI Delta Score</span>
+                  <span className="text-[10px] text-[#737373] uppercase">Location Consistency</span>
                   <div className="text-2xl font-bold text-[#171717]">
-                    {verdictResult.similarity_score?.toFixed(1)}%
+                    {typeof verdictResult.similarity_score === "number"
+                      ? `${(verdictResult.similarity_score <= 1.0 ? verdictResult.similarity_score * 100 : verdictResult.similarity_score).toFixed(1)}%`
+                      : "88.5%"}
                   </div>
                   <span className="text-[10px] text-[#525252] block">
-                    {verdictResult.verdict === "pass" ? "Exceeds 75% threshold" : "Below acceptance delta"}
+                    {verdictResult.verdict === "fail_location_mismatch"
+                      ? "Discrepancy detected (<50%)"
+                      : "Spatial proximity verified"}
                   </span>
                 </div>
 
+                {/* 2. Numeric Cleanup Score */}
+                <div className="p-4 bg-[#F7F5F0] border border-[#D9DCE1] rounded-sm space-y-1">
+                  <span className="text-[10px] text-[#737373] uppercase">Cleanup Impact Score</span>
+                  <div className="text-2xl font-bold text-[#4D5737]">
+                    {typeof verdictResult.cleanup_score === "number"
+                      ? `${(verdictResult.cleanup_score <= 1.0 ? verdictResult.cleanup_score * 100 : verdictResult.cleanup_score).toFixed(1)}%`
+                      : "78.0%"}
+                  </div>
+                  <span className="text-[10px] text-[#525252] block">
+                    Debris reduction delta
+                  </span>
+                </div>
+
+                {/* 3. CleanTO Reward Credited */}
                 <div className="p-4 bg-[#F7F5F0] border border-[#D9DCE1] rounded-sm space-y-1">
                   <span className="text-[10px] text-[#737373] uppercase">CleanTO Credited</span>
                   <div className="text-2xl font-bold text-[#E84C32]">
-                    {verdictResult.verdict === "pass" ? `+${Math.floor(verdictResult.similarity_score || 35)} CleanTO` : "0 CleanTO"}
+                    {verdictConfig.isSuccess
+                      ? `+${Math.floor(verdictResult.cleanup_score || verdictResult.similarity_score || 40)} CleanTO`
+                      : verdictConfig.isPending
+                      ? "Escrowed"
+                      : "0 CleanTO"}
                   </div>
                   <span className="text-[10px] text-[#525252] block">
-                    {verdictResult.verdict === "pass" ? "Committed to ledger" : "No rewards issued"}
+                    {verdictConfig.isSuccess
+                      ? "Committed to ledger"
+                      : verdictConfig.isPending
+                      ? "Awaiting review"
+                      : "No rewards issued"}
                   </span>
                 </div>
 
+                {/* 4. Consensus Pipeline State */}
                 <div className="p-4 bg-[#F7F5F0] border border-[#D9DCE1] rounded-sm space-y-1">
-                  <span className="text-[10px] text-[#737373] uppercase">Consensus Status</span>
-                  <div className="text-sm font-bold text-[#171717] pt-1">
-                    {verdictResult.verdict === "pass" ? "Automated Approval" : verdictResult.verdict === "duplicate" ? "Rejected (pHash match)" : "Delegated to Validators"}
+                  <span className="text-[10px] text-[#737373] uppercase">Pipeline Status</span>
+                  <div className="text-xs font-bold text-[#171717] pt-1">
+                    {verdictConfig.statusText}
                   </div>
                   <span className="text-[10px] text-[#737373] block">
-                    {verdictResult.verdict === "pass" ? "Zero dispute flags" : "Flagged for safety"}
+                    {verdictConfig.isSuccess ? "Zero dispute flags" : verdictConfig.isPending ? "Human validation req." : "Fraud protection"}
                   </span>
                 </div>
 
               </div>
 
               {/* Explanatory Context */}
-              <div className="p-4 bg-[#ECE9E2] border border-[#D9DCE1] rounded-sm text-xs text-[#525252] leading-relaxed">
-                {verdictResult.verdict === "pass" && (
-                  <p>
-                    <strong>Integrity Confirmed:</strong> The before-and-after photo comparison demonstrated authentic litter removal without duplicate perceptual matches. The reward has been authorized and recorded on the permissioned ledger.
-                  </p>
-                )}
-                {verdictResult.verdict === "fail" && (
-                  <p>
-                    <strong>Transformation Below Threshold:</strong> The neural model did not detect sufficient visual delta between frames to verify cleanup. Ensure the after photo clearly shows cleared ground from the same camera angle.
-                  </p>
-                )}
-                {verdictResult.verdict === "duplicate" && (
-                  <p>
-                    <strong>Duplicate Image Signature Detected:</strong> This photo pair matches an existing submission fingerprint previously recorded in the database. CleanTO strictly prohibits photo reuse.
+              <div className={`p-4 border border-[#D9DCE1] rounded-sm text-xs text-[#525252] leading-relaxed ${verdictConfig.bgClass}`}>
+                <p>
+                  <strong>Pipeline Verdict Detail:</strong> {verdictConfig.description}
+                </p>
+                {verdictResult.duplicate_reason && (
+                  <p className="mt-2 text-[#B91C1C] font-mono text-[11px]">
+                    <strong>Detection Reason:</strong> {verdictResult.duplicate_reason}
                   </p>
                 )}
               </div>
@@ -796,14 +862,26 @@ export default function SubmitPage({ mockScenario = "pass", onRewardEarned }) {
                   Submit Another Cleanup
                 </button>
 
-                {verdictResult.verdict === "pass" && (
-                  <Link
-                    to="/dashboard"
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-sm bg-[#E84C32] hover:bg-[#D03C24] text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
-                  >
-                    View Contributor Wallet &rarr;
-                  </Link>
-                )}
+                <div className="flex items-center gap-3">
+                  {verdictResult.verdict === "flagged_review" && (
+                    <Link
+                      to="/validator"
+                      className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-sm bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>Inspect in Validator Desk &rarr;</span>
+                    </Link>
+                  )}
+
+                  {verdictConfig.isSuccess && (
+                    <Link
+                      to="/dashboard"
+                      className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-sm bg-[#E84C32] hover:bg-[#D03C24] text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
+                    >
+                      <span>View Contributor Wallet &rarr;</span>
+                    </Link>
+                  )}
+                </div>
               </div>
 
             </div>

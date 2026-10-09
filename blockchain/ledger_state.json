@@ -1,0 +1,32 @@
+{
+  "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "userBalances": {
+    "0x14C3e5DF3E9abaE0460EEdE38F70c2B60615D7Eb": 155,
+    "usr_demo": 155
+  },
+  "cleanupCounts": {
+    "0x14C3e5DF3E9abaE0460EEdE38F70c2B60615D7Eb": 2,
+    "usr_demo": 2
+  },
+  "totalIssued": 155,
+  "transactions": [
+    {
+      "txHash": "0xba5925ab679e16a96f058d9443fd91cebc6fef62a89adb3106b756c623ac3402",
+      "blockNumber": 3,
+      "user": "usr_demo",
+      "userAddress": "0x14C3e5DF3E9abaE0460EEdE38F70c2B60615D7Eb",
+      "score": 80,
+      "newBalance": 155,
+      "timestamp": "2026-10-09T13:52:45.538Z"
+    },
+    {
+      "txHash": "0x794a8131d622156eff9d0ce404845880b03171b81d0d5c0ee2e3e5b925bd7f0b",
+      "blockNumber": 3,
+      "user": "usr_demo",
+      "userAddress": "0x14C3e5DF3E9abaE0460EEdE38F70c2B60615D7Eb",
+      "score": 75,
+      "newBalance": 75,
+      "timestamp": "2026-10-09T13:46:17.276Z"
+    }
+  ]
+}

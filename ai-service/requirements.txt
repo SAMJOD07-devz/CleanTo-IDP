@@ -13,3 +13,6 @@ PyWavelets>=1.4.0
 # torchvision>=0.15.0
 # sentence-transformers>=2.2.0
 # open-clip-torch>=2.20.0
+
+# General Object Detector (YOLOv8) for Cleanup Score heuristic
+ultralytics>=8.0.0

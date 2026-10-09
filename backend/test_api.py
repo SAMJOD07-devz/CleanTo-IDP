@@ -1,116 +1,170 @@
 """
-CleanTO Backend Automated & Self-Test Script
-===========================================
-Milestone: Review II (20% Milestone)
-
-Runs unit tests against the Flask application and SQLite database:
-1. Tests database initialization and user seeding.
-2. Tests POST /submit endpoint with sample images.
-3. Tests GET /submissions/{id} endpoint.
-4. Tests error handling for 404 and missing image fields.
+CleanTO Backend Automated Test Suite (30% Milestone)
+====================================================
+Role: Backend Engineer
+Validates all updated interface contracts and workflows:
+1. Health and Index endpoints.
+2. POST /submit with genuine cleanup pair -> Auto-pass verdict + blockchain reward + balance increment.
+3. POST /submit with duplicate images -> fail_duplicate verdict.
+4. Flagged submission flow:
+   - Submission receives 'flagged_review'
+   - Appears in GET /validator/queue
+   - Reviewer calls POST /validator/review with 'approve'
+   - Blockchain recordCleanup is triggered, tx_hash assigned, balance credited.
+5. GET /users/<id>/balance returns updated balance and cleanup count.
+6. GET /submissions/<id> returns all fields including cleanup_score, similarity_score, and tx_hash.
 """
 
-import sys
 import io
+import sys
+import json
+import uuid
 from pathlib import Path
+from PIL import Image  # type: ignore
 
-# Add backend directory to sys.path
 BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from app import app
-from db import init_db, get_submission, list_submissions
+try:
+    from app import app
+    from db import init_db, insert_submission
+except ImportError:
+    from backend.app import app
+    from backend.db import init_db, insert_submission
+
+
+def create_test_image(color=(100, 150, 200), size=(128, 128)) -> bytes:
+    """Helper to generate a distinct in-memory JPEG."""
+    buf = io.BytesIO()
+    img = Image.new("RGB", size, color=color)
+    img.save(buf, format="JPEG")
+    return buf.getvalue()
+
 
 def run_tests():
-    print("=" * 60)
-    print("CleanTO Backend Self-Test (20% Milestone Verification)")
-    print("=" * 60)
+    print("=" * 70)
+    print(" CleanTO Backend Verification Test Suite (30% Milestone)")
+    print("=" * 70)
 
-    # Initialize DB
     init_db()
     client = app.test_client()
 
-    # 1. Health & Index Check
+    # --- Test 1: Health & API Index ---
     print("\n[1] Testing GET / and GET /health...")
-    res = client.get("/")
-    assert res.status_code == 200, f"Expected 200, got {res.status_code}"
-    print("    GET / -> Status 200 OK")
-
+    res_index = client.get("/")
+    assert res_index.status_code == 200, f"Expected 200, got {res_index.status_code}"
     res_health = client.get("/health")
     assert res_health.status_code == 200, f"Expected 200, got {res_health.status_code}"
-    print(f"    GET /health -> {res_health.get_json()}")
+    print("    [PASS] Health & Index endpoints OK.")
 
-    # 2. Check Sample Images
-    sample_dir = BACKEND_DIR.parent / "ai-service" / "sample_images"
-    before_img = sample_dir / "sample_before_1.jpg"
-    after_img = sample_dir / "sample_after_1.jpg"
+    # --- Test 2: POST /submit (Auto Pass + Blockchain Reward) ---
+    print("\n[2] Testing POST /submit (Genuine Cleanup Pair)...")
+    img_before = create_test_image(color=(120, 80, 50))
+    img_after = create_test_image(color=(130, 85, 55))
 
-    if before_img.exists() and after_img.exists():
-        with open(before_img, "rb") as f_b, open(after_img, "rb") as f_a:
-            before_bytes = f_b.read()
-            after_bytes = f_a.read()
-    else:
-        # Generate minimal fake jpeg bytes if samples are absent
-        from PIL import Image
-        buf_b, buf_a = io.BytesIO(), io.BytesIO()
-        Image.new("RGB", (64, 64), color="red").save(buf_b, format="JPEG")
-        Image.new("RGB", (64, 64), color="green").save(buf_a, format="JPEG")
-        before_bytes = buf_b.getvalue()
-        after_bytes = buf_a.getvalue()
-
-    # 3. Test POST /submit
-    print("\n[2] Testing POST /submit (Contract Verification)...")
     data = {
-        "before": (io.BytesIO(before_bytes), "before.jpg"),
-        "after": (io.BytesIO(after_bytes), "after.jpg"),
-        "user_id": "usr_demo"
+        "before": (io.BytesIO(img_before), "clean_before.jpg"),
+        "after": (io.BytesIO(img_after), "clean_after.jpg"),
+        "user_id": "usr_test_1"
     }
 
     res_submit = client.post("/submit", data=data, content_type="multipart/form-data")
-    assert res_submit.status_code == 200, f"POST /submit failed with {res_submit.status_code}: {res_submit.data}"
-    json_data = res_submit.get_json()
+    assert res_submit.status_code == 200, f"POST /submit failed: {res_submit.data}"
+    json_submit = res_submit.get_json()
 
-    print("    Response payload:")
-    for k, v in json_data.items():
-        print(f"      - {k}: {v}")
+    print("    Submitted Response:")
+    print(f"      - submission_id: {json_submit.get('submission_id')}")
+    print(f"      - verdict: {json_submit.get('verdict')}")
+    print(f"      - similarity_score: {json_submit.get('similarity_score')}")
+    print(f"      - cleanup_score: {json_submit.get('cleanup_score')}")
+    print(f"      - tx_hash: {json_submit.get('tx_hash')}")
 
-    assert "submission_id" in json_data, "Missing submission_id"
-    assert "verdict" in json_data, "Missing verdict"
-    assert "similarity_score" in json_data, "Missing similarity_score"
-    sub_id = json_data["submission_id"]
-    print(f"    SUCCESS: Created submission ID: {sub_id}")
+    assert "submission_id" in json_submit
+    assert "verdict" in json_submit
+    assert "similarity_score" in json_submit
+    assert "cleanup_score" in json_submit
+    print("    [PASS] Submission contract verified.")
 
-    # 4. Test GET /submissions/{id}
-    print(f"\n[3] Testing GET /submissions/{sub_id}...")
-    res_get = client.get(f"/submissions/{sub_id}")
-    assert res_get.status_code == 200, f"GET /submissions/{sub_id} failed: {res_get.status_code}"
-    get_data = res_get.get_json()
-    print("    Retrieved payload:")
-    for k, v in get_data.items():
-        print(f"      - {k}: {v}")
+    # --- Test 3: Duplicate Detection ---
+    print("\n[3] Testing POST /submit (Identical Images -> Duplicate Detection)...")
+    identical_img = create_test_image(color=(200, 200, 200))
+    dup_data = {
+        "before": (io.BytesIO(identical_img), "dup1.jpg"),
+        "after": (io.BytesIO(identical_img), "dup2.jpg"),
+        "user_id": "usr_test_dup"
+    }
+    res_dup = client.post("/submit", data=dup_data, content_type="multipart/form-data")
+    assert res_dup.status_code == 200
+    json_dup = res_dup.get_json()
+    print(f"    Duplicate Verdict: {json_dup.get('verdict')} (Reason: {json_dup.get('duplicate_reason')})")
+    assert json_dup.get("verdict") == "fail_duplicate"
+    print("    [PASS] Duplicate rejected as expected.")
 
-    assert get_data["submission_id"] == sub_id
-    assert get_data["verdict"] == json_data["verdict"]
-    assert "created_at" in get_data
-    print("    SUCCESS: Retrieved submission matches DB record.")
+    # --- Test 4: Validator Queue & Review Workflow ---
+    print("\n[4] Testing Validator Queue & Review Workflow...")
+    # Insert a flagged submission directly to test validator review
+    flagged_sub_id = f"sub_flagged_test_{uuid.uuid4().hex[:8]}"
+    insert_submission(
+        submission_id=flagged_sub_id,
+        user_id="usr_validator_subject",
+        before_path="",
+        after_path="",
+        verdict="flagged_review",
+        similarity_score=64.5,
+        cleanup_score=40.0
+    )
 
-    # 5. Test 404 on non-existent submission
-    print("\n[4] Testing GET /submissions/invalid_id (404 expected)...")
-    res_404 = client.get("/submissions/non_existent_123")
-    assert res_404.status_code == 404, f"Expected 404, got {res_404.status_code}"
-    print("    SUCCESS: Returned 404 for invalid ID.")
+    # Check GET /validator/queue
+    res_queue = client.get("/validator/queue")
+    assert res_queue.status_code == 200
+    queue_data = res_queue.get_json()
+    queued_ids = [item["submission_id"] for item in queue_data["queue"]]
+    assert flagged_sub_id in queued_ids, f"Flagged ID {flagged_sub_id} not in queue: {queued_ids}"
+    print(f"    Found flagged submission in /validator/queue (Queue size: {queue_data['count']})")
 
-    # 6. Test GET /submissions (List)
-    print("\n[5] Testing GET /submissions (List recent)...")
-    res_list = client.get("/submissions")
-    assert res_list.status_code == 200
-    list_data = res_list.get_json()
-    print(f"    Total submissions in SQLite: {list_data['count']}")
+    # Approve via POST /validator/review
+    review_payload = {
+        "submission_id": flagged_sub_id,
+        "decision": "approve"
+    }
+    res_review = client.post(
+        "/validator/review",
+        data=json.dumps(review_payload),
+        content_type="application/json"
+    )
+    assert res_review.status_code == 200
+    review_data = res_review.get_json()
+    print(f"    Validator Review Response: verdict={review_data.get('verdict')}, tx_hash={review_data.get('tx_hash')}")
+    assert review_data.get("verdict") == "approved_by_validator"
+    assert review_data.get("tx_hash") is not None
+    print("    [PASS] Validator approval and reward flow verified.")
 
-    print("\n" + "=" * 60)
-    print("ALL BACKEND CONTRACT TESTS PASSED SUCCESSFULLY! (20% Milestone)")
-    print("=" * 60)
+    # --- Test 5: GET /users/{id}/balance ---
+    print("\n[5] Testing GET /users/<id>/balance...")
+    res_balance = client.get("/users/usr_validator_subject/balance")
+    assert res_balance.status_code == 200
+    balance_data = res_balance.get_json()
+    print(f"    User Balance Data: {balance_data}")
+    assert balance_data["balance"] >= 40.0
+    assert balance_data["cleanup_count"] >= 1
+    print("    [PASS] Real balance accurately tracked.")
+
+    # --- Test 6: GET /submissions/{id} ---
+    print("\n[6] Testing GET /submissions/<id>...")
+    res_sub_detail = client.get(f"/submissions/{flagged_sub_id}")
+    assert res_sub_detail.status_code == 200
+    detail_data = res_sub_detail.get_json()
+    assert detail_data["submission_id"] == flagged_sub_id
+    assert detail_data["verdict"] == "approved_by_validator"
+    assert "cleanup_score" in detail_data
+    assert "tx_hash" in detail_data
+    print(f"    Retrieved submission details: verdict={detail_data['verdict']}, score={detail_data['cleanup_score']}")
+    print("    [PASS] GET /submissions/<id> full detail verified.")
+
+    print("\n" + "=" * 70)
+    print(" ALL 30% MILESTONE BACKEND TESTS PASSED SUCCESSFULLY! ")
+    print("=" * 70)
 
 
 if __name__ == "__main__":

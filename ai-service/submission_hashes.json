@@ -1,6 +1,7 @@
 [
   {
     "submission_id": "sub_dab8136",
+    "submission_time": "2026-10-09T17:30:00Z",
     "before_phash": "901a18989cb79f9f",
     "after_phash": "909058989cbf9d9f",
     "before_dhash": "b8a8ecaef4d8cad0",
@@ -9,6 +10,7 @@
   },
   {
     "submission_id": "sub_fc83980",
+    "submission_time": "2026-10-09T18:00:00Z",
     "before_phash": "fcbc85861391b971",
     "after_phash": "abc47a65d3983e41",
     "before_dhash": "3825379929272098",
@@ -17,10 +19,29 @@
   },
   {
     "submission_id": "sub_3f9e939c",
+    "submission_time": "2026-10-09T18:30:00Z",
     "before_phash": "a62b0b0d6de073e5",
     "after_phash": "807a2290fecfcf0d",
     "before_dhash": "c3798d0f97d6b626",
     "after_dhash": "ad9dfb01bed4c7a3",
+    "metadata": {}
+  },
+  {
+    "submission_id": "sub_62d4bb1e",
+    "submission_time": "2026-10-09T19:00:00Z",
+    "before_phash": "c1839f33e04f9ee0",
+    "after_phash": "df3f81e16140c4cf",
+    "before_dhash": "c8d9c8908a0e0306",
+    "after_dhash": "567674744b224043",
+    "metadata": {}
+  },
+  {
+    "submission_id": "sub_1f94fea2",
+    "submission_time": "2026-10-09T19:15:00Z",
+    "before_phash": "ca7e7ff54c50a082",
+    "after_phash": "8a62709fd0e5b770",
+    "before_dhash": "0663cd65d7dff96b",
+    "after_dhash": "08a947e7b9787318",
     "metadata": {}
   }
 ]
