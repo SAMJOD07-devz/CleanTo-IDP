@@ -18,6 +18,7 @@ Validates all updated interface contracts and workflows:
 import io
 import sys
 import json
+import uuid
 from pathlib import Path
 from PIL import Image
 
@@ -99,7 +100,7 @@ def run_tests():
     # --- Test 4: Validator Queue & Review Workflow ---
     print("\n[4] Testing Validator Queue & Review Workflow...")
     # Insert a flagged submission directly to test validator review
-    flagged_sub_id = "sub_flagged_test_99"
+    flagged_sub_id = f"sub_flagged_test_{uuid.uuid4().hex[:8]}"
     insert_submission(
         submission_id=flagged_sub_id,
         user_id="usr_validator_subject",
