@@ -24,13 +24,6 @@ from typing import Dict, Any, Optional, List, Tuple, Union
 from PIL import Image  # type: ignore
 import numpy as np  # type: ignore
 
-# Try importing ultralytics for YOLOv8
-try:
-    from ultralytics import YOLO  # type: ignore
-except ImportError:
-    pass  # We will handle it in the function if called
-
-
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("CleanTO.DuplicateDetector")
@@ -113,7 +106,7 @@ class EmbeddingEngine:
             return vec / (norm + 1e-9)
 
         elif self.backend == "open-clip":
-            import torch
+            import torch  # type: ignore
             tensor = self.preprocess(image).unsqueeze(0)
             with torch.no_grad():
                 feat = self.model.encode_image(tensor)
@@ -121,7 +114,7 @@ class EmbeddingEngine:
             return feat.squeeze(0).cpu().numpy()
 
         elif self.backend == "transformers-clip":
-            import torch
+            import torch  # type: ignore
             inputs = self.preprocess(images=image, return_tensors="pt")
             with torch.no_grad():
                 out = self.model.get_image_features(**inputs)

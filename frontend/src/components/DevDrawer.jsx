@@ -11,7 +11,7 @@ import { BACKEND_URL } from "../api";
  *
  * Normal user flow defaults to Live Backend.
  */
-export default function DevDrawer({ devOverride, onOverrideChange }) {
+export default function DevDrawer({ devOverride, onOverrideChange, onReplayIntro }) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Keyboard shortcut listener: Ctrl+Shift+D or Cmd+Shift+D
@@ -156,13 +156,28 @@ export default function DevDrawer({ devOverride, onOverrideChange }) {
 
             <div className="text-[10px] font-mono text-[#737373] border-t border-[#D9DCE1] pt-2 flex items-center justify-between">
               <span>Shortcut: Ctrl+Shift+D</span>
-              <button
-                type="button"
-                onClick={() => onOverrideChange(null)}
-                className="underline hover:text-[#171717]"
-              >
-                Reset to Live
-              </button>
+              <div className="flex items-center gap-2">
+                {onReplayIntro && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onReplayIntro();
+                      setIsOpen(false);
+                    }}
+                    className="text-[#E84C32] font-bold hover:underline"
+                  >
+                    Replay 3D Intro
+                  </button>
+                )}
+                <span>&middot;</span>
+                <button
+                  type="button"
+                  onClick={() => onOverrideChange(null)}
+                  className="underline hover:text-[#171717]"
+                >
+                  Reset Live
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
