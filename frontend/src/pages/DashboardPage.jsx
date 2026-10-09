@@ -27,6 +27,9 @@ function resolveThumb(path, fallbackUrl) {
   if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:") || path.startsWith("blob:")) {
     return path;
   }
+  if (path.startsWith("/")) {
+    return `${BACKEND_URL}${path}`;
+  }
   const filename = path.split(/[\/\\]/).pop();
   return `${BACKEND_URL}/uploads/${filename}`;
 }

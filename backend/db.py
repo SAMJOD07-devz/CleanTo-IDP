@@ -64,7 +64,8 @@ def init_db():
     if "reward_amount" not in existing_sub_columns:
         cursor.execute("ALTER TABLE Submission ADD COLUMN reward_amount REAL DEFAULT 0.0")
     if "updated_at" not in existing_sub_columns:
-        cursor.execute("ALTER TABLE Submission ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+        cursor.execute("ALTER TABLE Submission ADD COLUMN updated_at TIMESTAMP")
+        cursor.execute("UPDATE Submission SET updated_at = created_at WHERE updated_at IS NULL")
 
     cursor.execute("PRAGMA table_info(User)")
     existing_user_columns = [col["name"] for col in cursor.fetchall()]
