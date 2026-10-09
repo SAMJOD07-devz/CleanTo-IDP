@@ -18,6 +18,7 @@ Core Capabilities:
 import os
 import json
 import logging
+import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple, Union
 from PIL import Image
@@ -285,11 +286,16 @@ class HashStore:
         after_phash: str,
         before_dhash: Optional[str] = None,
         after_dhash: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        submission_time: Optional[str] = None
     ):
         """Register a verified cleanup submission with its image hashes."""
+        if not submission_time:
+            submission_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
         record = {
             "submission_id": submission_id,
+            "submission_time": submission_time,
             "before_phash": str(before_phash),
             "after_phash": str(after_phash),
             "before_dhash": str(before_dhash) if before_dhash else None,
@@ -298,7 +304,7 @@ class HashStore:
         }
         self.records.append(record)
         self.save()
-        logger.info("Registered submission %s in HashStore", submission_id)
+        logger.info("Registered submission %s in HashStore (time: %s)", submission_id, submission_time)
 
     def find_duplicate(
         self,
@@ -318,6 +324,7 @@ class HashStore:
             if dist_before <= max_distance:
                 matches.append({
                     "submission_id": rec["submission_id"],
+                    "submission_time": rec.get("submission_time"),
                     "matched_role": "before",
                     "matched_hash": rec["before_phash"],
                     "distance": int(dist_before),
@@ -330,6 +337,7 @@ class HashStore:
             if dist_after <= max_distance:
                 matches.append({
                     "submission_id": rec["submission_id"],
+                    "submission_time": rec.get("submission_time"),
                     "matched_role": "after",
                     "matched_hash": rec["after_phash"],
                     "distance": int(dist_after),
@@ -499,7 +507,7 @@ def check_duplicate(
         # Thresholds derived from testing
         LOCATION_SIMILARITY_FAIL_THRESH = 0.50
         LOCATION_SIMILARITY_FLAG_THRESH = 0.70
-        CLEANUP_SCORE_FLAG_THRESH = 0.10
+        CLEANUP_SCORE_FLAG_THRESH = 0.55
 
         if similarity_score < LOCATION_SIMILARITY_FAIL_THRESH:
             verdict = "fail_location_mismatch"
@@ -545,7 +553,8 @@ def register_submission(
     before_path: Union[str, Path],
     after_path: Union[str, Path],
     store_path: Optional[Union[str, Path]] = DEFAULT_STORE_FILE,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
+    submission_time: Optional[str] = None
 ) -> Dict[str, Any]:
     """Convenience helper to record a verified submission in the hash store."""
     before_phash, before_dhash, _ = compute_hashes(before_path)
@@ -558,7 +567,8 @@ def register_submission(
         after_phash=str(after_phash),
         before_dhash=str(before_dhash),
         after_dhash=str(after_dhash),
-        metadata=metadata
+        metadata=metadata,
+        submission_time=submission_time
     )
     return {
         "status": "success",

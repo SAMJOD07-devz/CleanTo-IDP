@@ -171,7 +171,7 @@ def run_demo():
         before_path=genuine_before,
         after_path=location_mismatch,
         hash_threshold=6,
-        store=store,
+        store=HashStore(filepath=None),
         submission_id="SUBM_DIFF_LOCATION_005"
     )
 
